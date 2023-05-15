@@ -1,88 +1,65 @@
 const express = require('express');
+const bodyParser = require('body-parser');
+const swaggerJsDoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 const app = express();
-
-var pool = require('./queries.js');
-
-var things = require('./things.js')
-
-app.use('/things', things)
-
-app.get('/', (req,res) => {
-  pool.query('SELECT * FROM actor', (err, result) => {
-    if (err){
-      throw err
-    }
-    res.send(result.rows)
-  })
-})
-
-//Jawaban Soal Nomor 2
-//1. (Menampilkan seluruh data list Film)
-
-app.get('/film', (req,res) => {
-  pool.query('SELECT * FROM film', (err, result) => {
-    if (err){
-      throw err
-    }
-    res.send(result.rows)
-  })
-})
-
-//2. (Menampilkan data film tertentu berdasarkan id)
-app.get('/film/:id', (req,res) => {
-  pool.query('SELECT * FROM film WHERE film_id = 98', (err, result) => {
-    if (err){
-      throw err
-    }
-    res.send(result.rows)
-  })
-})
-
-//3. Menampilkan data list category
-app.get('/film_category', (req,res) => {
-  pool.query('SELECT * FROM film_category', (err, result) => {
-    if (err){
-      throw err
-    }
-    res.send(result)
-  })
-})
-
-//4.Menampilkan data list film berdasarkan category
-app.get('/film/category/:category_id', (req, res) => {
-  const category_id = req.params.category_id;
-  console.log(category_id); // menampilkan nilai parameter category_id pada console
-  pool.query(`SELECT * FROM film
-              JOIN film_category ON film.film_id = film_category.film_id
-              WHERE film_category.category_id = 6`, [category_id], (err, result) => {
-    if (err) {
-      throw err;
-    }
-    res.send(result.rows);
-  });
-});
-
-// Set port
+const pool = require('./queries.js');
+const movies = require('./controller/movies.js');
+const users = require('./controller/users.js');
+const morgan = require('morgan');
 const port = process.env.PORT || 3000;
 
-// // Data text
-// const text = "Hello, world!!";
-// const text2 = "Hello, World!! From Post"
+app.use(morgan('common'));
 
-// // Route untuk menampilkan data text
-// app.get('/', (req, res) => {
-//   res.send(text);
-// });
+// app.use(cookieParser());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: true}));
 
-// app.post('/', (req, res) => {
-//     res.send(text2)
-// })
+// Define spesifikasi OpenAPI
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Contoh API dengan Swagger',
+      version: '1.0.0',
+      description: 'Contoh API dengan Swagger dan Express.js',
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
+    servers: [
+      {
+        url: 'http://localhost:3000',
+      },
+    ],
+  },
+  apis: ['./controller/*.js'],
+};
+
+// Buat dokumentasi dengan swagger-jsdoc
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+
+app.use('/movies', movies);
+app.use('/users', users);
+
 pool.connect((err, res) => {
   console.log (err);
   console.log('connectted');
 })
 
-// Jalankan server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
